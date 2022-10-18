@@ -1727,8 +1727,15 @@ function replacePlaceholders(template, placeholderMap /* placeholderKey and orig
         if (phs) {
             for (const placeholder of phs) {
                 const transformer = validateTransformer(placeholder.transformer);
-                if (transformer === null || transformer === void 0 ? void 0 : transformer.pattern) {
-                    const extractedValue = value.replace(transformer.pattern, transformer.target);
+                if ((transformer === null || transformer === void 0 ? void 0 : transformer.pattern) || placeholder.cb) {
+                    let extractedValue;
+                    if (placeholder.cb) {
+                        const f = new Function('source', placeholder.cb);
+                        extractedValue = f(value);
+                    }
+                    else {
+                        extractedValue = (transformer === null || transformer === void 0 ? void 0 : transformer.pattern) && value.replace(transformer.pattern, transformer === null || transformer === void 0 ? void 0 : transformer.target);
+                    }
                     // note: `.replace` will return the full string again if there was no match
                     if (extractedValue && extractedValue !== value) {
                         if (placeholderPrMap) {

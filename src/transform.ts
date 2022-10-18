@@ -334,8 +334,15 @@ function replacePlaceholders(
     if (phs) {
       for (const placeholder of phs) {
         const transformer = validateTransformer(placeholder.transformer)
-        if (transformer?.pattern) {
-          const extractedValue = value.replace(transformer.pattern, transformer.target)
+        if (transformer?.pattern || placeholder.cb) {
+          let extractedValue
+          if (placeholder.cb) {
+            const f = new Function('source', placeholder.cb)
+            extractedValue = f(value)
+          } else {
+            extractedValue = transformer?.pattern && value.replace(transformer.pattern, transformer?.target)
+          }
+
           // note: `.replace` will return the full string again if there was no match
           if (extractedValue && extractedValue !== value) {
             if (placeholderPrMap) {

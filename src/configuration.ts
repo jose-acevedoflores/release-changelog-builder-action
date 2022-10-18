@@ -61,7 +61,8 @@ export interface TagResolver {
 export interface Placeholder {
   name: string // the name of the new placeholder
   source: string // the src placeholder which will be used to apply the transformer on
-  transformer: Transformer // the transformer to use to transform the original placeholder into the custom placheolder
+  transformer?: Transformer // the transformer to use to transform the original placeholder into the custom placheolder
+  cb?: string
 }
 
 export const DefaultConfiguration: Configuration = {
