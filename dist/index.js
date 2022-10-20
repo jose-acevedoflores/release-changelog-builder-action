@@ -288,6 +288,12 @@ class GitCommandManager {
             return output.stdout.trim();
         });
     }
+    latestCommit() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const output = yield this.execGit(['rev-parse', 'HEAD']);
+            return output.stdout.trim();
+        });
+    }
     initialCommit() {
         return __awaiter(this, void 0, void 0, function* () {
             const revListOutput = yield this.execGit(['rev-list', '--max-parents=0', 'HEAD']);
@@ -414,6 +420,7 @@ function run() {
             // read in from, to tag inputs
             const fromTag = core.getInput('fromTag');
             const toTag = core.getInput('toTag');
+            const toCurrent = core.getInput('toCurrent') === 'true';
             // read in flags
             const includeOpen = core.getInput('includeOpen') === 'true';
             const ignorePreReleases = core.getInput('ignorePreReleases') === 'true';
@@ -421,7 +428,7 @@ function run() {
             const fetchReviewers = core.getInput('fetchReviewers') === 'true';
             const fetchReleaseInformation = core.getInput('fetchReleaseInformation') === 'true';
             const commitMode = core.getInput('commitMode') === 'true';
-            const result = yield new releaseNotesBuilder_1.ReleaseNotesBuilder(baseUrl, token, repositoryPath, owner, repo, fromTag, toTag, includeOpen, failOnError, ignorePreReleases, fetchReviewers, fetchReleaseInformation, commitMode, configuration).build();
+            const result = yield new releaseNotesBuilder_1.ReleaseNotesBuilder(baseUrl, token, repositoryPath, owner, repo, fromTag, toTag, toCurrent, includeOpen, failOnError, ignorePreReleases, fetchReviewers, fetchReleaseInformation, commitMode, configuration).build();
             core.setOutput('changelog', result);
             // write the result in changelog to file if possible
             const outputFile = core.getInput('outputFile');
@@ -968,7 +975,7 @@ const tags_1 = __nccwpck_require__(7532);
 const utils_1 = __nccwpck_require__(918);
 const https_proxy_agent_1 = __nccwpck_require__(7219);
 class ReleaseNotesBuilder {
-    constructor(baseUrl, token, repositoryPath, owner, repo, fromTag, toTag, includeOpen = false, failOnError, ignorePreReleases, fetchReviewers = false, fetchReleaseInformation = false, commitMode, configuration) {
+    constructor(baseUrl, token, repositoryPath, owner, repo, fromTag, toTag, toCurrent = false, includeOpen = false, failOnError, ignorePreReleases, fetchReviewers = false, fetchReleaseInformation = false, commitMode, configuration) {
         this.baseUrl = baseUrl;
         this.token = token;
         this.repositoryPath = repositoryPath;
@@ -976,6 +983,7 @@ class ReleaseNotesBuilder {
         this.repo = repo;
         this.fromTag = fromTag;
         this.toTag = toTag;
+        this.toCurrent = toCurrent;
         this.includeOpen = includeOpen;
         this.failOnError = failOnError;
         this.ignorePreReleases = ignorePreReleases;
@@ -1027,7 +1035,7 @@ class ReleaseNotesBuilder {
             // ensure proper from <-> to tag range
             core.startGroup(`🔖 Resolve tags`);
             const tagsApi = new tags_1.Tags(octokit);
-            const tagRange = yield tagsApi.retrieveRange(this.repositoryPath, this.owner, this.repo, this.fromTag, this.toTag, this.ignorePreReleases, this.configuration.max_tags_to_fetch || configuration_1.DefaultConfiguration.max_tags_to_fetch, this.configuration.tag_resolver || configuration_1.DefaultConfiguration.tag_resolver);
+            const tagRange = yield tagsApi.retrieveRange(this.repositoryPath, this.owner, this.repo, this.fromTag, this.toTag, this.toCurrent, this.ignorePreReleases, this.configuration.max_tags_to_fetch || configuration_1.DefaultConfiguration.max_tags_to_fetch, this.configuration.tag_resolver || configuration_1.DefaultConfiguration.tag_resolver);
             let thisTag = tagRange.to;
             if (!thisTag) {
                 (0, utils_1.failOrError)(`💥 Missing or couldn't resolve 'toTag'`, this.failOnError);
@@ -1240,8 +1248,8 @@ class Tags {
             }
         });
     }
-    retrieveRange(repositoryPath, owner, repo, fromTag, toTag, ignorePreReleases, maxTagsToFetch, tagResolver) {
-        var _a;
+    retrieveRange(repositoryPath, owner, repo, fromTag, toTag, toCurrent, ignorePreReleases, maxTagsToFetch, tagResolver) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             // filter out tags not matching the specified filter
             const filteredTags = filterTags(
@@ -1271,10 +1279,18 @@ class Tags {
             }
             let resultToTag;
             let resultFromTag;
+            if (toCurrent) {
+                const gitHelper = yield (0, gitHelper_1.createCommandManager)(repositoryPath);
+                const lastCommitFromCmd = yield gitHelper.latestCommit();
+                const result = yield this.octokit.rest.repos.listCommits({ owner, repo, sha: 'main', per_page: 1 });
+                const lastCommit = (_a = result.data[0]) === null || _a === void 0 ? void 0 : _a.sha;
+                core.info(`EXPERIMENT ${lastCommit} ${lastCommitFromCmd}`);
+                toTag = lastCommit;
+            }
             // ensure to resolve the toTag if it was not provided
             if (!toTag) {
                 // if not specified try to retrieve tag from github.context.ref
-                if (((_a = github.context.ref) === null || _a === void 0 ? void 0 : _a.startsWith('refs/tags/')) === true) {
+                if (((_b = github.context.ref) === null || _b === void 0 ? void 0 : _b.startsWith('refs/tags/')) === true) {
                     toTag = github.context.ref.replace('refs/tags/', '');
                     core.info(`🔖 Resolved current tag (${toTag}) from the 'github.context.ref'`);
                     resultToTag = {

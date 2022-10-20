@@ -139,6 +139,7 @@ export class Tags {
     repo: string,
     fromTag: string | null,
     toTag: string | null,
+    toCurrent: boolean,
     ignorePreReleases: boolean,
     maxTagsToFetch: number,
     tagResolver: TagResolver
@@ -176,6 +177,15 @@ export class Tags {
 
     let resultToTag: TagInfo | null
     let resultFromTag: TagInfo | null
+
+    if (toCurrent) {
+      const gitHelper = await createCommandManager(repositoryPath)
+      const lastCommitFromCmd = await gitHelper.latestCommit()
+      const result = await this.octokit.rest.repos.listCommits({owner, repo, sha: 'main', per_page: 1})
+      const lastCommit = result.data[0]?.sha
+      core.info(`EXPERIMENT ${lastCommit} ${lastCommitFromCmd}`)
+      toTag = lastCommit
+    }
 
     // ensure to resolve the toTag if it was not provided
     if (!toTag) {

@@ -23,6 +23,11 @@ class GitCommandManager {
     return output.stdout.trim()
   }
 
+  async latestCommit(): Promise<string> {
+    const output = await this.execGit(['rev-parse', 'HEAD'])
+    return output.stdout.trim()
+  }
+
   async initialCommit(): Promise<string> {
     const revListOutput = await this.execGit(['rev-list', '--max-parents=0', 'HEAD'])
     return revListOutput.stdout.trim()

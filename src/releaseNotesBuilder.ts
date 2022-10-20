@@ -15,6 +15,7 @@ export class ReleaseNotesBuilder {
     private repo: string | null,
     private fromTag: string | null,
     private toTag: string | null,
+    private toCurrent: boolean = false,
     private includeOpen: boolean = false,
     private failOnError: boolean,
     private ignorePreReleases: boolean,
@@ -75,6 +76,7 @@ export class ReleaseNotesBuilder {
       this.repo,
       this.fromTag,
       this.toTag,
+      this.toCurrent,
       this.ignorePreReleases,
       this.configuration.max_tags_to_fetch || DefaultConfiguration.max_tags_to_fetch,
       this.configuration.tag_resolver || DefaultConfiguration.tag_resolver
